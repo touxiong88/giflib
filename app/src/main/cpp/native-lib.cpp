@@ -23,8 +23,7 @@ AndroidBitmapInfo INFO;
 AndroidBitmap_getInfo();//env.bitmap &info
 //锁定bitmap
 void *pixels;
-JNIEXPORT void JNICALL
-Java_com_example_xiaoke_gifplayer_GifHandler_drawFrame(JNIEnv *env, jclass type,GifFileType *giffletype,GifFileType *info,int  *pixels, int current_frame){
+void drawFrame(GifFileType *giffletype,AndroidBitmapInfo *info,int  *pixels, int current_frame){
 
 //解锁画布
 //AndroidBitmap_lockPixels(env,bitmap,&pixels);//env.bitmap,&pixels
@@ -39,8 +38,8 @@ if(gifbean->current_frame >= gifbean->total_frame-1)
     int pointpixels;//在saveimage里面的索引rasterbits
     ColorMapObject *colorMapObject  ;  //根据颜色列表压缩
 //拿到当前帧信息
-    SavedImages savedImages  = giffiletype->SavedImages[gifbean->current_frame];//todo
-GifImageDesc frameinfo= savedImages.imagedesc;
+    SavedImage savedImages  = giffiletype->SavedImages[gifbean->current_frame];//todo
+GifImageDesc frameinfo= savedImages.ImageDesc;
 // x y 偏移量,图像宽度 高度
 //info.stride;//每一行top列
         //遍历像素数组信息rastebits  绘制bitmap
@@ -51,9 +50,9 @@ for (int y=frameinfo.Top;y<frameinfo.Top+frameinfo.Height;++y){ //遍历行
 for (int x=frameinfo.Left;x<frameinfo.Left+frameinfo.Width;++x){
 //具体一个像素的索引
     pointpixels=(y-frameinfo.Top)*frameinfo.Width+x-frameinfo.Left;
-    GifByteType gifByteType = savedImages.rastebits[pointpixels]; //得到的是压缩数据
+    GifByteType gifByteType = savedImages.RasterBits[pointpixels]; //得到的是压缩数据
    //解压缩
-    GifColorType gifColorType  = colorMapObject->color[gifByteType];
+    GifColorType gifColorType  = colorMapObject->Colors[gifByteType];
     //压缩的argb解压成RGB
         line[x]=Argb(255,gifColorType.Red ,gifColorType.Green,gifColorType.Blue);
 }
@@ -101,7 +100,7 @@ Java_com_example_xiaoke_gifplayer_GifHandler_updateFrame(JNIEnv *env, jclass typ
     //锁定bitmap，一副图片是二维数组
     AndroidBitmap_lockPixels(env, bitmap, &pixels);
     //绘制一帧图片
-    drawFrame(gifFileType, &info, (int *) pixels, gifBean->current_frame, false);
+    drawFrame(gifFileType, &info, (int *) pixels, gifBean->current_frame);
     //当前帧+1；
     gifBean->current_frame += 1;
     //当绘制到最后一帧
@@ -142,12 +141,11 @@ Java_com_example_xiaoke_gifplayer_GifHandler_loadGif(JNIEnv *env, jclass type, j
     GifFileType *gifFileType = DGifOpenFileName(filePath, &err);//调用源码api里方法，打开gif，返回GifFileType实体
     //初始化结构体
     DGifSlurp(gifFileType);
-    //实例化bean;
+    //实例化GifBean;
     GifBean *gifBean = (GifBean *) malloc((sizeof(GifBean)));
-    gifBean->frame_duration = 0;
-    gifBean->current_frame = 0;
-    gifBean->total_frame = 0;
-    gifBean->total_time = 0;
+    //清空 写默认值0
+    memset(gifBean,0, sizeof(GifBean));
+
     //好比一个view打一个tag
     gifFileType->UserData = gifBean;
     //下一步，给gifbean成员变量赋值，得到当前播放时间的总时长；
